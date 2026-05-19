@@ -34,48 +34,42 @@ class _CaptureScreenState extends State<CaptureScreen> {
     final userId = firebaseService.currentUser?.uid ?? '';
     
     if (userId.isEmpty) {
-      // Handle not logged in state
       setState(() => _isSaving = false);
       return;
     }
 
     final now = DateTime.now();
-    DateTime? scheduledDate;
 
-    // Calculate initial delay based on priority (Phase 1 logic)
-    if (_priority >= 90) {
-      scheduledDate = now.add(const Duration(hours: 8));
-    } else if (_priority >= 80) {
-      scheduledDate = now.add(const Duration(hours: 12));
-    } else if (_priority >= 70) {
-      scheduledDate = now.add(const Duration(hours: 24));
-    }
-
+    // Build the item (without ID — Firestore will generate it)
     final item = RememberItem(
-      id: '', // Firestore will auto-generate if we add via collection, but we need ID for notification.
+      id: '',
       userId: userId,
       title: _titleController.text.trim(),
       description: _descController.text.trim(),
       priority: _priority.toInt(),
       createdAt: now,
-      nextScheduledReminder: scheduledDate,
+      reminderCount: 0,
     );
 
-    try {
-      // Actually, to schedule a notification, we need a numeric ID. 
-      // We can use the hashcode of the item's title + timestamp for phase 1.
-      final notifId = item.title.hashCode + now.hashCode;
+    // Calculate initial scheduled date using the model's built-in logic
+    final scheduledDate = item.calculateNextReminderDate();
 
-      if (scheduledDate != null) {
+    try {
+      // Save to Firestore first to get the document ID
+      final docId = await firebaseService.addItem(
+        item.copyWith(nextScheduledReminder: scheduledDate),
+      );
+
+      // Schedule notification using the stable Firestore doc ID
+      if (docId != null && scheduledDate != null) {
+        final notifId = docId.hashCode.abs();
         await NotificationService().scheduleReminder(
-          id: notifId.abs(),
-          title: 'Remember: \${item.title}',
+          id: notifId,
+          title: 'Remember: ${item.title}',
           body: item.description.isNotEmpty ? item.description : 'High priority item reminder.',
           scheduledDate: scheduledDate,
         );
       }
-
-      await firebaseService.addItem(item);
 
       if (mounted) {
         _titleController.clear();
@@ -86,11 +80,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Item saved!')),
         );
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving: \$e')),
+          SnackBar(content: Text('Error saving: $e')),
         );
       }
     } finally {
@@ -100,6 +95,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
         });
       }
     }
+  }
+
+  String _getPriorityLabel(double priority) {
+    if (priority >= 90) return 'Urgent — notify in 8h';
+    if (priority >= 80) return 'High — notify in 12h';
+    if (priority >= 70) return 'Medium — notify in 24h';
+    return 'Low — in-app only';
   }
 
   @override
@@ -136,13 +138,22 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: theme.colorScheme.surfaceVariant,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
                 ),
               ),
               const SizedBox(height: 32),
               Text(
-                'Priority: \${_priority.toInt()}',
+                'Priority: ${_priority.toInt()}',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _getPriorityLabel(_priority),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 8),
               SliderTheme(

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_theme.dart';
 import 'services/firebase_service.dart' as my_firebase;
 import 'services/notification_service.dart';
@@ -10,13 +13,23 @@ import 'screens/dashboard_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase (Assuming user has placed google-services.json / GoogleService-Info.plist or using flutterfire config)
-  // For Phase 1 we will try to catch initialization errors if not configured.
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+
+  // Initialize Hive for local settings storage
+  await Hive.initFlutter();
+
+  // Initialize Firebase
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    print("Firebase initialization error: \$e");
+    print("Firebase initialization error: $e");
   }
+
+  // Initialize Google Sign-In (required before any sign-in calls)
+  await GoogleSignIn.instance.initialize(
+    serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
+  );
 
   // Initialize Notifications
   await NotificationService().init();
@@ -25,7 +38,7 @@ void main() async {
 }
 
 class RememberMeApp extends StatelessWidget {
-  const RememberMeApp({Key? key}) : super(key: key);
+  const RememberMeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +61,7 @@ class RememberMeApp extends StatelessWidget {
 }
 
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({Key? key}) : super(key: key);
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -25,6 +25,49 @@ class RememberItem {
     this.nextScheduledReminder,
   });
 
+  /// Whether this item qualifies for push notifications (priority >= threshold).
+  bool get isHighPriority => priority >= 70;
+
+  /// Calculate the initial delay (D0) based on priority tier.
+  /// Returns null if priority is below the notification threshold.
+  Duration? get initialDelay {
+    if (priority >= 90) return const Duration(hours: 8);
+    if (priority >= 80) return const Duration(hours: 12);
+    if (priority >= 70) return const Duration(hours: 24);
+    return null; // Below threshold — in-app only
+  }
+
+  /// Calculate the next reminder delay using the Multiplier Effect.
+  /// D{n+1} = D0 * (1.5 ^ reminderCount)
+  /// Returns null if priority is below the notification threshold.
+  Duration? get nextReminderDelay {
+    final d0 = initialDelay;
+    if (d0 == null) return null;
+
+    final multiplier = _pow(1.5, reminderCount);
+    final delayMinutes = (d0.inMinutes * multiplier).round();
+    return Duration(minutes: delayMinutes);
+  }
+
+  /// Calculate the next scheduled DateTime from now using the multiplier effect.
+  DateTime? calculateNextReminderDate() {
+    final delay = nextReminderDelay;
+    if (delay == null) return null;
+    return DateTime.now().add(delay);
+  }
+
+  /// Simple power function for doubles.
+  static double _pow(double base, int exponent) {
+    double result = 1.0;
+    for (int i = 0; i < exponent; i++) {
+      result *= base;
+    }
+    return result;
+  }
+
+  /// Generate a stable notification ID from the Firestore document ID.
+  int get notificationId => id.hashCode.abs();
+
   factory RememberItem.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return RememberItem(
