@@ -69,7 +69,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final theme = Theme.of(context);
     final firebaseService = Provider.of<FirebaseService>(context, listen: false);
     final user = firebaseService.currentUser;
-    final isAnonymous = firebaseService.isAnonymous;
 
     return Scaffold(
       appBar: AppBar(
@@ -117,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   Text(
                                     user?.displayName != null && user!.displayName!.isNotEmpty
                                         ? user.displayName!.trim().split(' ').first
-                                        : (isAnonymous ? 'Guest' : 'User'),
+                                        : 'User',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -125,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    user?.email ?? (isAnonymous ? 'Sign in to sync across devices' : ''),
+                                    user?.email ?? '',
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: Colors.grey.shade600,
@@ -137,50 +136,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        if (isAnonymous)
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final result = await firebaseService.signInWithGoogle();
-                                if (result != null && mounted) {
-                                  setState(() {}); // Refresh UI
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Signed in with Google!')),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.login),
-                              label: const Text('Sign in with Google'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              await firebaseService.signOut();
+                              if (mounted) {
+                                Navigator.of(context).popUntil((route) => route.isFirst);
+                              }
+                            },
+                            icon: const Icon(Icons.logout),
+                            label: const Text('Sign Out'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                            ),
-                          )
-                        else
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                await firebaseService.signOut();
-                                if (mounted) {
-                                  Navigator.of(context).popUntil((route) => route.isFirst);
-                                }
-                              },
-                              icon: const Icon(Icons.logout),
-                              label: const Text('Sign Out'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                foregroundColor: Colors.red,
-                              ),
+                              foregroundColor: Colors.red,
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),

@@ -49,8 +49,6 @@ class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProv
     String firstName = 'User';
     if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
       firstName = user.displayName!.trim().split(' ').first;
-    } else if (firebaseService.isAnonymous) {
-      firstName = 'Guest';
     }
 
     return Scaffold(

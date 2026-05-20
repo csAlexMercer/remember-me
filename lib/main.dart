@@ -9,6 +9,7 @@ import 'theme/app_theme.dart';
 import 'services/firebase_service.dart' as my_firebase;
 import 'services/notification_service.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,21 +81,8 @@ class AuthWrapper extends StatelessWidget {
           return const DashboardScreen();
         }
 
-        // Auto sign-in anonymously for MVP
-        firebaseService.signInAnonymously();
-        
-        return const Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Signing in..."),
-              ],
-            ),
-          ),
-        );
+        // Return Onboarding Screen for unauthenticated users
+        return const OnboardingScreen();
       },
     );
   }

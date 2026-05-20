@@ -14,22 +14,7 @@ class FirebaseService {
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  /// Whether the current user is signed in anonymously.
-  bool get isAnonymous => currentUser?.isAnonymous ?? true;
-
-  Future<User?> signInAnonymously() async {
-    try {
-      final userCredential = await _auth.signInAnonymously();
-      return userCredential.user;
-    } catch (e) {
-      print("Error signing in anonymously: $e");
-      return null;
-    }
-  }
-
   /// Sign in with Google using the new google_sign_in 7.x API.
-  /// If the user is currently anonymous, link the Google credential
-  /// to preserve existing data.
   Future<User?> signInWithGoogle() async {
     try {
       // Authenticate with Google
@@ -41,24 +26,7 @@ class FirebaseService {
         idToken: googleAuth.idToken,
       );
 
-      // If currently anonymous, link credentials to keep existing data
-      if (currentUser != null && currentUser!.isAnonymous) {
-        try {
-          final userCredential = await currentUser!.linkWithCredential(credential);
-          await _updateUserProfile(userCredential.user, googleUser);
-          return _auth.currentUser;
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'credential-already-in-use') {
-            // Credential belongs to another account — sign in directly
-            final userCredential = await _auth.signInWithCredential(credential);
-            await _updateUserProfile(userCredential.user, googleUser);
-            return _auth.currentUser;
-          }
-          rethrow;
-        }
-      }
-
-      // Not anonymous — just sign in
+      // Sign in directly
       final userCredential = await _auth.signInWithCredential(credential);
       await _updateUserProfile(userCredential.user, googleUser);
       return _auth.currentUser;
