@@ -18,7 +18,8 @@ class FirebaseService {
   Future<User?> signInWithGoogle() async {
     try {
       // Authenticate with Google
-      final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
+      final GoogleSignInAccount googleUser = await GoogleSignIn.instance
+          .authenticate();
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       // Build Firebase credential using the idToken
@@ -36,10 +37,14 @@ class FirebaseService {
     }
   }
 
-  Future<void> _updateUserProfile(User? user, GoogleSignInAccount googleUser) async {
+  Future<void> _updateUserProfile(
+    User? user,
+    GoogleSignInAccount googleUser,
+  ) async {
     if (user != null) {
       bool updated = false;
-      if (user.displayName == null || user.displayName != googleUser.displayName) {
+      if (user.displayName == null ||
+          user.displayName != googleUser.displayName) {
         await user.updateDisplayName(googleUser.displayName);
         updated = true;
       }
@@ -58,11 +63,45 @@ class FirebaseService {
     await _auth.signOut();
   }
 
+  Future<void> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) return;
+
+    final userDoc = _firestore.collection('users').doc(user.uid);
+    final itemsSnapshot = await userDoc.collection('items').get();
+
+    for (final doc in itemsSnapshot.docs) {
+      final item = RememberItem.fromFirestore(doc);
+      await NotificationService().cancelReminder(item.notificationId);
+    }
+
+    final batch = _firestore.batch();
+    for (final doc in itemsSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    batch.delete(userDoc);
+    await batch.commit();
+
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'requires-recent-login') {
+        rethrow;
+      }
+    } finally {
+      await GoogleSignIn.instance.signOut();
+      await _auth.signOut();
+    }
+  }
+
   // ─── Firestore ─────────────────────────────────────────────
 
   CollectionReference get _itemsCollection {
     if (currentUser == null) throw Exception("User not logged in");
-    return _firestore.collection('users').doc(currentUser!.uid).collection('items');
+    return _firestore
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('items');
   }
 
   Stream<List<RememberItem>> getActiveItems() {
@@ -72,9 +111,11 @@ class FirebaseService {
         .orderBy('priority', descending: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => RememberItem.fromFirestore(doc))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => RememberItem.fromFirestore(doc))
+              .toList(),
+        );
   }
 
   Stream<List<RememberItem>> getAsleepItems() {
@@ -83,9 +124,53 @@ class FirebaseService {
         .where('isAsleep', isEqualTo: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => RememberItem.fromFirestore(doc))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => RememberItem.fromFirestore(doc))
+              .toList(),
+        );
+  }
+
+  Future<List<RememberItem>> getActiveItemsOnce() async {
+    if (currentUser == null) return [];
+    final snapshot = await _itemsCollection
+        .where('isAsleep', isEqualTo: false)
+        .orderBy('priority', descending: true)
+        .orderBy('createdAt', descending: true)
+        .get();
+
+    return snapshot.docs.map((doc) => RememberItem.fromFirestore(doc)).toList();
+  }
+
+  /// On app open, ensure notification-eligible awake items have reminders scheduled.
+  Future<void> runStartupReminderCheck() async {
+    if (currentUser == null) return;
+
+    final notifService = NotificationService();
+    final activeItems = await getActiveItemsOnce();
+    final now = DateTime.now();
+
+    for (final item in activeItems.where((item) => item.shouldNotify)) {
+      DateTime? nextDate = item.nextScheduledReminder;
+
+      if (nextDate == null || !nextDate.isAfter(now)) {
+        nextDate = item.calculateNextReminderDate();
+        if (nextDate != null) {
+          await updateItem(item.copyWith(nextScheduledReminder: nextDate));
+        }
+      }
+
+      if (nextDate != null) {
+        await notifService.scheduleReminder(
+          id: item.notificationId,
+          title: 'Remember: ${item.title}',
+          body: item.description.isNotEmpty
+              ? item.description
+              : 'Time to revisit this thought.',
+          scheduledDate: nextDate,
+        );
+      }
+    }
   }
 
   /// Add a new item and return its Firestore document ID.
@@ -117,10 +202,9 @@ class FirebaseService {
     if (willSleep) {
       // Putting to sleep — cancel notification and halt progression
       await notifService.cancelReminder(item.notificationId);
-      await updateItem(item.copyWith(
-        isAsleep: true,
-        nextScheduledReminder: null,
-      ));
+      await updateItem(
+        item.copyWith(isAsleep: true, nextScheduledReminder: null),
+      );
     } else {
       // Waking up — reschedule with multiplier effect
       final nextDate = item.calculateNextReminderDate();
@@ -128,14 +212,15 @@ class FirebaseService {
         await notifService.scheduleReminder(
           id: item.notificationId,
           title: 'Remember: ${item.title}',
-          body: item.description.isNotEmpty ? item.description : 'Time to revisit this thought.',
+          body: item.description.isNotEmpty
+              ? item.description
+              : 'Time to revisit this thought.',
           scheduledDate: nextDate,
         );
       }
-      await updateItem(item.copyWith(
-        isAsleep: false,
-        nextScheduledReminder: nextDate,
-      ));
+      await updateItem(
+        item.copyWith(isAsleep: false, nextScheduledReminder: nextDate),
+      );
     }
   }
 
@@ -155,7 +240,9 @@ class FirebaseService {
       await NotificationService().scheduleReminder(
         id: finalItem.notificationId,
         title: 'Remember: ${finalItem.title}',
-        body: finalItem.description.isNotEmpty ? finalItem.description : 'Time to revisit this thought.',
+        body: finalItem.description.isNotEmpty
+            ? finalItem.description
+            : 'Time to revisit this thought.',
         scheduledDate: nextDate,
       );
     }

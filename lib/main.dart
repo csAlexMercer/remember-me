@@ -11,6 +11,8 @@ import 'services/notification_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/onboarding_screen.dart';
 
+import 'services/theme_provider.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -48,14 +50,21 @@ class RememberMeApp extends StatelessWidget {
         Provider<my_firebase.FirebaseService>(
           create: (_) => my_firebase.FirebaseService(),
         ),
+        ChangeNotifierProvider<ThemeProvider>(
+          create: (_) => ThemeProvider(),
+        ),
       ],
-      child: MaterialApp(
-        title: 'Remember Me',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: const AuthWrapper(),
-        debugShowCheckedModeBanner: false,
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Remember Me',
+            theme: AppTheme.lightTheme(themeProvider.primaryColor),
+            darkTheme: AppTheme.darkTheme(themeProvider.primaryColor),
+            themeMode: themeProvider.themeMode,
+            home: const AuthWrapper(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }

@@ -25,8 +25,11 @@ class RememberItem {
     this.nextScheduledReminder,
   });
 
-  /// Whether this item qualifies for push notifications (priority >= threshold).
+  /// Whether this item qualifies as high priority in the UI.
   bool get isHighPriority => priority >= 70;
+
+  /// Whether this item should receive notification reminders.
+  bool get shouldNotify => priority >= 60;
 
   /// Calculate the initial delay (D0) based on priority tier.
   /// Returns null if priority is below the notification threshold.
@@ -34,7 +37,8 @@ class RememberItem {
     if (priority >= 90) return const Duration(hours: 8);
     if (priority >= 80) return const Duration(hours: 12);
     if (priority >= 70) return const Duration(hours: 24);
-    return null; // Below threshold — in-app only
+    if (priority >= 60) return const Duration(hours: 48);
+    return null; // Below notification threshold
   }
 
   /// Calculate the next reminder delay using the Multiplier Effect.
@@ -78,12 +82,12 @@ class RememberItem {
       priority: data['priority'] ?? 0,
       isAsleep: data['isAsleep'] ?? false,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      lastReminderSent: data['lastReminderSent'] != null 
-          ? (data['lastReminderSent'] as Timestamp).toDate() 
+      lastReminderSent: data['lastReminderSent'] != null
+          ? (data['lastReminderSent'] as Timestamp).toDate()
           : null,
       reminderCount: data['reminderCount'] ?? 0,
-      nextScheduledReminder: data['nextScheduledReminder'] != null 
-          ? (data['nextScheduledReminder'] as Timestamp).toDate() 
+      nextScheduledReminder: data['nextScheduledReminder'] != null
+          ? (data['nextScheduledReminder'] as Timestamp).toDate()
           : null,
     );
   }
@@ -96,9 +100,13 @@ class RememberItem {
       'priority': priority,
       'isAsleep': isAsleep,
       'createdAt': Timestamp.fromDate(createdAt),
-      'lastReminderSent': lastReminderSent != null ? Timestamp.fromDate(lastReminderSent!) : null,
+      'lastReminderSent': lastReminderSent != null
+          ? Timestamp.fromDate(lastReminderSent!)
+          : null,
       'reminderCount': reminderCount,
-      'nextScheduledReminder': nextScheduledReminder != null ? Timestamp.fromDate(nextScheduledReminder!) : null,
+      'nextScheduledReminder': nextScheduledReminder != null
+          ? Timestamp.fromDate(nextScheduledReminder!)
+          : null,
     };
   }
 
@@ -124,7 +132,8 @@ class RememberItem {
       createdAt: createdAt ?? this.createdAt,
       lastReminderSent: lastReminderSent ?? this.lastReminderSent,
       reminderCount: reminderCount ?? this.reminderCount,
-      nextScheduledReminder: nextScheduledReminder ?? this.nextScheduledReminder,
+      nextScheduledReminder:
+          nextScheduledReminder ?? this.nextScheduledReminder,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:vibration/vibration.dart';
+
 import '../models/remember_item.dart';
 import '../services/firebase_service.dart';
 import '../services/notification_service.dart';
@@ -20,9 +21,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   Future<void> _saveItem() async {
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Title is required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Title is required')));
       return;
     }
 
@@ -30,9 +31,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
       _isSaving = true;
     });
 
-    final firebaseService = Provider.of<FirebaseService>(context, listen: false);
+    final firebaseService = Provider.of<FirebaseService>(
+      context,
+      listen: false,
+    );
     final userId = firebaseService.currentUser?.uid ?? '';
-    
+
     if (userId.isEmpty) {
       setState(() => _isSaving = false);
       return;
@@ -66,7 +70,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
         await NotificationService().scheduleReminder(
           id: notifId,
           title: 'Remember: ${item.title}',
-          body: item.description.isNotEmpty ? item.description : 'High priority item reminder.',
+          body: item.description.isNotEmpty
+              ? item.description
+              : 'High priority item reminder.',
           scheduledDate: scheduledDate,
         );
       }
@@ -77,16 +83,16 @@ class _CaptureScreenState extends State<CaptureScreen> {
         setState(() {
           _priority = 60.0;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item saved!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Item saved!')));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving: $e')));
       }
     } finally {
       if (mounted) {
@@ -101,16 +107,20 @@ class _CaptureScreenState extends State<CaptureScreen> {
     if (priority >= 90) return 'Urgent — notify in 8h';
     if (priority >= 80) return 'High — notify in 12h';
     if (priority >= 70) return 'Medium — notify in 24h';
-    return 'Low — in-app only';
+    if (priority >= 60) return 'Low — notify in 48h';
+    return 'Low';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Capture Idea', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Capture Your Thought',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: SafeArea(
         child: Padding(
@@ -120,7 +130,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
             children: [
               TextField(
                 controller: _titleController,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                ),
                 decoration: const InputDecoration(
                   hintText: "What's on your mind?",
                   border: InputBorder.none,
@@ -132,7 +145,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 controller: _descController,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'Optional details...',
+                  hintText: 'Is there more to it?',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -144,7 +157,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
               const SizedBox(height: 32),
               Text(
                 'Priority: ${_priority.toInt()}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -160,9 +176,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 data: SliderThemeData(
                   trackHeight: 8,
                   activeTrackColor: theme.colorScheme.secondary,
-                  inactiveTrackColor: theme.colorScheme.secondary.withOpacity(0.2),
+                  inactiveTrackColor: theme.colorScheme.secondary.withValues(
+                    alpha: 0.2,
+                  ),
                   thumbColor: theme.colorScheme.primary,
-                  overlayColor: theme.colorScheme.primary.withOpacity(0.2),
+                  overlayColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.2,
+                  ),
                 ),
                 child: Slider(
                   value: _priority,
@@ -170,17 +190,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   max: 100,
                   divisions: 100,
                   onChanged: (value) {
+                    if (_priority.toInt() != value.toInt()) {
+                      HapticFeedback.selectionClick();
+                    }
                     setState(() {
                       _priority = value;
                     });
-                    // Provide haptic feedback on multiples of 10
-                    if (value % 10 == 0) {
-                      Vibration.hasVibrator().then((hasVibrator) {
-                        if (hasVibrator == true) {
-                          Vibration.vibrate(duration: 20);
-                        }
-                      });
-                    }
                   },
                 ),
               ),
@@ -195,9 +210,15 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   backgroundColor: theme.colorScheme.primary,
                   foregroundColor: Colors.white,
                 ),
-                child: _isSaving 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Save Thought', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: _isSaving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'Save Thought',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ],
           ),

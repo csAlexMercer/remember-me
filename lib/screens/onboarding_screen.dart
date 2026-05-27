@@ -9,7 +9,8 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerProviderStateMixin {
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -23,13 +24,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
       duration: const Duration(milliseconds: 1200),
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _controller.forward();
   }
@@ -42,9 +45,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
 
   Future<void> _handleSignIn(BuildContext context) async {
     setState(() => _isLoading = true);
-    final firebaseService = Provider.of<FirebaseService>(context, listen: false);
+    final firebaseService = Provider.of<FirebaseService>(
+      context,
+      listen: false,
+    );
     final user = await firebaseService.signInWithGoogle();
-    
+
     if (mounted) {
       setState(() => _isLoading = false);
       if (user == null) {
@@ -71,15 +77,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
           child: SlideTransition(
             position: _slideAnimation,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 48.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32.0,
+                vertical: 48.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Spacer(),
-                  // App Icon / Logo Placeholder
+                  // App logo
                   Container(
-                    height: 120,
-                    width: 120,
+                    height: 150,
+                    width: 150,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primaryContainer,
                       shape: BoxShape.circle,
@@ -91,14 +100,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                         ),
                       ],
                     ),
-                    child: Icon(
-                      Icons.psychology,
-                      size: 64,
-                      color: theme.colorScheme.primary,
-                    ),
+                    padding: const EdgeInsets.all(18),
+                    child: Image.asset('app_logo.png', fit: BoxFit.contain),
                   ),
                   const SizedBox(height: 48),
-                  
+
                   // Title
                   Text(
                     'Remember Me',
@@ -110,7 +116,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Subtitle
                   Text(
                     'Designed for the ADHD brain.\nActive retrieval, not a data graveyard.',
@@ -120,9 +126,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                       height: 1.5,
                     ),
                   ),
-                  
+
                   const Spacer(flex: 2),
-                  
+
                   // Sign in Button
                   _isLoading
                       ? const Center(child: CircularProgressIndicator())
@@ -146,15 +152,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerPr
                             ),
                           ),
                         ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Privacy Note
                   Text(
                     'By continuing, you agree that your thoughts are safely synced to your account.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                        0.7,
+                      ),
                     ),
                   ),
                 ],

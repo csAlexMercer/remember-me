@@ -18,29 +18,31 @@ class NotificationService {
 
   Future<void> init() async {
     tz.initializeTimeZones();
-    
+
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // iOS/macOS initialization settings
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
-      requestSoundPermission: true,
-      requestBadgePermission: true,
-      requestAlertPermission: true,
-    );
+          requestSoundPermission: true,
+          requestBadgePermission: true,
+          requestAlertPermission: true,
+        );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-      macOS: initializationSettingsDarwin,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+          macOS: initializationSettingsDarwin,
+        );
 
     await flutterLocalNotificationsPlugin.initialize(
       settings: initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse notificationResponse) async {
-        // Handle notification tapped logic here
-      },
+      onDidReceiveNotificationResponse:
+          (NotificationResponse notificationResponse) async {
+            // Handle notification tapped logic here
+          },
     );
   }
 
@@ -51,7 +53,15 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
   }) async {
-    final adjustedDate = await _adjustForQuietHours(scheduledDate);
+    DateTime adjustedDate = await _adjustForQuietHours(scheduledDate);
+    final now = DateTime.now();
+
+    // flutter_local_notifications requires a strictly future timestamp.
+    if (!adjustedDate.isAfter(now)) {
+      adjustedDate = await _adjustForQuietHours(
+        now.add(const Duration(minutes: 1)),
+      );
+    }
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id: id,
