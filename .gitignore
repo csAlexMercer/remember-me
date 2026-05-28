@@ -11,7 +11,7 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-.docx
+requirements_document.docx
 # IntelliJ related
 *.iml
 *.ipr
