@@ -5,7 +5,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animated_icons/lottiefiles.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import '../models/remember_item.dart';
 import '../services/firebase_service.dart';
@@ -23,6 +25,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   late final AnimationController _flipController;
+  late final Stream<List<RememberItem>> _activeItemsStream;
+  late final Stream<List<RememberItem>> _asleepItemsStream;
   String _searchQuery = '';
   bool _isSearching = false;
   bool _isCircleExpanded = true;
@@ -41,14 +45,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   static const Duration _hintDelay = Duration(seconds: 10);
   static const Duration _shakeCooldown = Duration(milliseconds: 900);
   static const double _circleSize = 320;
-  static const double _frontFaceSize = 220;
-  static const double _featureCardWidth = 320;
-  static const double _featureCardHeight = 250;
+  static const double _frontFaceSize = 410;
+  static const double _featureCardWidth = 420;
+  static const double _featureCardHeight = 350;
   static const double _shakeThreshold = 18;
 
   @override
   void initState() {
     super.initState();
+    final firebaseService = Provider.of<FirebaseService>(
+      context,
+      listen: false,
+    );
+    _activeItemsStream = firebaseService.getActiveItems();
+    _asleepItemsStream = firebaseService.getAsleepItems();
     _tabController = TabController(length: 2, vsync: this);
     _flipController = AnimationController(vsync: this, duration: _flipDuration);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -304,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final circleTop = (constraints.maxHeight - _circleSize) / 2;
+          final circleTop = (constraints.maxHeight - _circleSize) / 2.5;
 
           return Stack(
             children: [
@@ -313,14 +323,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildItemList(
-                      firebaseService.getActiveItems(),
-                      isActive: true,
-                    ),
-                    _buildItemList(
-                      firebaseService.getAsleepItems(),
-                      isActive: false,
-                    ),
+                    _buildItemList(_activeItemsStream, isActive: true),
+                    _buildItemList(_asleepItemsStream, isActive: false),
                   ],
                 ),
               ),
@@ -350,7 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 curve: Curves.easeOutCubic,
                 left: 0,
                 right: 0,
-                top: _isCircleExpanded ? circleTop : 600,
+                top: _isCircleExpanded ? circleTop : 630,
                 bottom: _isCircleExpanded ? null : -(_circleSize * 0.8),
                 child: SafeArea(
                   top: false,
@@ -488,8 +492,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             },
             child: Container(
               key: ValueKey<String>(item?.id ?? 'empty'),
-              width: _featureCardWidth,
-              height: _featureCardHeight,
+              width: _featureCardWidth * 0.9,
+              height: _featureCardHeight * 0.8,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
@@ -539,13 +543,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                         Row(
                           children: [
                             Icon(
-                              Icons.shuffle,
+                              Icons.star_rounded,
                               size: 18,
                               color: theme.colorScheme.primary,
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Random active thought',
+                              'From your treasury of thoughts',
                               style: theme.textTheme.labelLarge?.copyWith(
                                 color: theme.colorScheme.primary,
                                 fontWeight: FontWeight.w700,
@@ -563,19 +567,32 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ),
                         ),
                         const SizedBox(height: 10),
-                        Expanded(
-                          child: Text(
-                            item.description.isNotEmpty
-                                ? item.description
-                                : 'No description provided.',
-                            maxLines: 6,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              height: 1.35,
+                        if (item.description.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Center(
+                              child: SizedBox(
+                                width: 132,
+                                height: 132,
+                                child: Lottie.asset(
+                                  LottieFiles.$9138_open_treasure_icon,
+                                  repeat: true,
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: Text(
+                              item.description,
+                              maxLines: 6,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                height: 1.35,
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
             ),
