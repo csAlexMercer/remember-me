@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -19,6 +20,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
   double _priority = 60.0;
   bool _isSaving = false;
 
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint('[CaptureScreen] $message');
+    }
+  }
+
   Future<void> _saveItem() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
@@ -30,6 +37,10 @@ class _CaptureScreenState extends State<CaptureScreen> {
     setState(() {
       _isSaving = true;
     });
+
+    _log(
+      'saveItem: start title="${_titleController.text.trim()}" priority=${_priority.toInt()}',
+    );
 
     final firebaseService = Provider.of<FirebaseService>(
       context,
@@ -57,16 +68,23 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
     // Calculate initial scheduled date using the model's built-in logic
     final scheduledDate = item.calculateNextReminderDate();
+    _log(
+      'saveItem: calculated scheduledDate=${scheduledDate?.toIso8601String()}',
+    );
 
     try {
       // Save to Firestore first to get the document ID
       final docId = await firebaseService.addItem(
         item.copyWith(nextScheduledReminder: scheduledDate),
       );
+      _log('saveItem: Firestore add complete docId=$docId');
 
       // Schedule notification using the stable Firestore doc ID
       if (docId != null && scheduledDate != null) {
         final notifId = docId.hashCode.abs();
+        _log(
+          'saveItem: scheduling notification notifId=$notifId payload=$docId',
+        );
         await NotificationService().scheduleReminder(
           id: notifId,
           title: 'Remember: ${item.title}',
@@ -74,6 +92,11 @@ class _CaptureScreenState extends State<CaptureScreen> {
               ? item.description
               : 'High priority item reminder.',
           scheduledDate: scheduledDate,
+          payload: docId,
+        );
+      } else {
+        _log(
+          'saveItem: skipped scheduling docId=$docId scheduledDate=${scheduledDate?.toIso8601String()}',
         );
       }
 
@@ -88,7 +111,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
         ).showSnackBar(const SnackBar(content: Text('Item saved!')));
         Navigator.pop(context);
       }
+      _log('saveItem: complete');
     } catch (e) {
+      _log('saveItem: error $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -100,6 +125,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
           _isSaving = false;
         });
       }
+      _log('saveItem: finalizing');
     }
   }
 

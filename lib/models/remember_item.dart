@@ -34,7 +34,7 @@ class RememberItem {
   /// Calculate the initial delay (D0) based on priority tier.
   /// Returns null if priority is below the notification threshold.
   Duration? get initialDelay {
-    if (priority >= 90) return const Duration(hours: 8);
+    if (priority >= 90) return const Duration(minutes: 2);
     if (priority >= 80) return const Duration(hours: 12);
     if (priority >= 70) return const Duration(hours: 24);
     if (priority >= 60) return const Duration(hours: 48);

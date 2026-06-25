@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animated_icons/lottiefiles.dart';
@@ -50,9 +51,16 @@ class _DashboardScreenState extends State<DashboardScreen>
   static const double _featureCardHeight = 350;
   static const double _shakeThreshold = 18;
 
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint('[DashboardScreen] $message');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _log('initState: start');
     final firebaseService = Provider.of<FirebaseService>(
       context,
       listen: false,
@@ -62,6 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _tabController = TabController(length: 2, vsync: this);
     _flipController = AnimationController(vsync: this, duration: _flipDuration);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _log('postFrame: starting startup checks');
       _runStartupReminderCheck();
       _loadFeaturedItem();
       _startShakeListener();
@@ -72,24 +81,31 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (!mounted || _startupReminderCheckRan) return;
     _startupReminderCheckRan = true;
 
+    _log('startupReminderCheck: running');
+
     final firebaseService = Provider.of<FirebaseService>(
       context,
       listen: false,
     );
     await firebaseService.runStartupReminderCheck();
+    _log('startupReminderCheck: complete');
   }
 
   Future<void> _loadFeaturedItem() async {
+    _log('loadFeaturedItem: start');
     final firebaseService = Provider.of<FirebaseService>(
       context,
       listen: false,
     );
     final activeItems = await firebaseService.getActiveItemsOnce();
+    _log('loadFeaturedItem: fetched ${activeItems.length} active items');
     if (!mounted) return;
 
     setState(() {
       _featuredItem = _pickRandomItem(activeItems);
     });
+
+    _log('loadFeaturedItem: selected item=${_featuredItem?.id}');
 
     if (_isBackFaceVisible && _featuredItem != null) {
       _scheduleShakeHint();
@@ -109,6 +125,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _startShakeListener() {
+    _log('shakeListener: start');
     _accelerometerSubscription?.cancel();
     _accelerometerSubscription = accelerometerEventStream().listen((event) {
       if (!mounted || !_isBackFaceVisible || _isRefreshingFeaturedItem) {
@@ -127,6 +144,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
       if (magnitude >= _shakeThreshold) {
         _lastShakeAt = now;
+        _log('shakeListener: shake detected magnitude=$magnitude');
         HapticFeedback.mediumImpact();
         _refreshFeaturedItem();
       }
@@ -135,6 +153,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _refreshFeaturedItem() async {
     if (_isRefreshingFeaturedItem) return;
+
+    _log('refreshFeaturedItem: start');
 
     setState(() {
       _isRefreshingFeaturedItem = true;
@@ -146,6 +166,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       listen: false,
     );
     final activeItems = await firebaseService.getActiveItemsOnce();
+    _log('refreshFeaturedItem: fetched ${activeItems.length} active items');
     if (!mounted) return;
 
     final nextItem = _pickRandomItem(activeItems);
@@ -153,6 +174,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       _featuredItem = nextItem;
       _isRefreshingFeaturedItem = false;
     });
+
+    _log('refreshFeaturedItem: selected item=${_featuredItem?.id}');
 
     if (_isBackFaceVisible) {
       _scheduleShakeHint();

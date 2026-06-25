@@ -1,10 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_theme.dart';
 import 'services/firebase_service.dart' as my_firebase;
 import 'services/notification_service.dart';
@@ -15,29 +15,46 @@ import 'services/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+
+  if (kDebugMode) {
+    debugPrint('[main] app bootstrap: start');
+  }
 
   // Initialize Hive for local settings storage
   await Hive.initFlutter();
+  if (kDebugMode) {
+    debugPrint('[main] Hive initialized');
+  }
 
   // Initialize Firebase
   try {
     await Firebase.initializeApp();
+    if (kDebugMode) {
+      debugPrint('[main] Firebase initialized');
+    }
   } catch (e) {
     print("Firebase initialization error: $e");
   }
 
   // Initialize Google Sign-In (required before any sign-in calls)
-  await GoogleSignIn.instance.initialize(
-    serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
-  );
+  await GoogleSignIn.instance.initialize();
+  if (kDebugMode) {
+    debugPrint('[main] Google Sign-In initialized');
+  }
 
   // Initialize Notifications
+  if (kDebugMode) {
+    debugPrint('[main] NotificationService init: start');
+  }
   await NotificationService().init();
+  if (kDebugMode) {
+    debugPrint('[main] NotificationService init: complete');
+  }
 
   runApp(const RememberMeApp());
+  if (kDebugMode) {
+    debugPrint('[main] runApp complete');
+  }
 }
 
 class RememberMeApp extends StatelessWidget {
@@ -50,9 +67,7 @@ class RememberMeApp extends StatelessWidget {
         Provider<my_firebase.FirebaseService>(
           create: (_) => my_firebase.FirebaseService(),
         ),
-        ChangeNotifierProvider<ThemeProvider>(
-          create: (_) => ThemeProvider(),
-        ),
+        ChangeNotifierProvider<ThemeProvider>(create: (_) => ThemeProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -75,7 +90,10 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firebaseService = Provider.of<my_firebase.FirebaseService>(context, listen: false);
+    final firebaseService = Provider.of<my_firebase.FirebaseService>(
+      context,
+      listen: false,
+    );
 
     return StreamBuilder<User?>(
       stream: firebaseService.authStateChanges,
